@@ -1,7 +1,8 @@
 import logging
 import os
-from exchangelib import Credentials, Account, DELEGATE, Q
+from exchangelib import Credentials, Account, Configuration, DELEGATE, Q
 from attachment_handler import AttachmentHandler
+import sys
 
 #syslog
 log_file = os.path.join(os.getcwd(), 'email_processor.log')
@@ -17,16 +18,22 @@ logger.addHandler(console_handler)
 
 
 class EmailProcessor:
-    def __init__(self, email_address, password):
+    def __init__(self, host, email_address, password):
+        self.host = host
         self.email_address = email_address
         self.password = password
         self.account = None
 
     def connect_to_exchange_server(self):
         try:
-            credentials = Credentials(self.email_address, self.password)
-            self.account = Account(self.email_address, credentials=credentials, autodiscover=True, access_type=DELEGATE)
-        
+            if self.host == '':
+                credentials = Credentials(self.email_address, self.password)
+                self.account = Account(self.email_address, credentials=credentials, autodiscover=True, access_type=DELEGATE)
+            else:
+                creds = Credentials(username=self.email_address, password=self.password)
+                config = Configuration(server=self.host, credentials=creds)
+                self.account = Account(primary_smtp_address=self.email_address, autodiscover=False, config=config, access_type=DELEGATE)
+              
         except Exception as e:
             logger.error(f"Failed to connect to Exchange server: {e}")
 
@@ -57,9 +64,10 @@ class EmailProcessor:
 
 # 使用示例
 if __name__ == "__main__":
-    email_address = '@dynasafe.com.tw'
+    host = '' # ''不指定host
+    address = '@dynasafe.com.tw'
     password = ''
 
-    processor = EmailProcessor(email_address, password)
+    processor = EmailProcessor(host, address, password)
     processor.connect_to_exchange_server()
     processor.process_emails(False, '電子', 0) #未讀郵件,'subject'
